@@ -145,6 +145,9 @@ export default function App() {
   }, [location.pathname]);
   //...
 ```
+### Github Action Status
+[![CI Pipeline](https://github.com/Kdotjo/jwt-pizza/actions/workflows/ci.yml/badge.svg)](https://github.com/YOURACCOUNTNAMEHERE/jwt-pizza/actions/workflows/ci.yml)
+
 
 ### Icons
 
