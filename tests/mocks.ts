@@ -2,6 +2,7 @@ import { Page, Route } from '@playwright/test';
 import { expect } from './testSetup';
 import { Franchise, Order, Pizza, Role, User } from '../src/service/pizzaService';
 
+// Test users, one per role
 export const users: Record<'diner' | 'franchisee' | 'admin', Required<User>> = {
   diner: { id: '3', name: 'Kai Chen', email: 'd@jwt.com', password: 'diner', roles: [{ role: Role.Diner }] },
   franchisee: {
@@ -14,24 +15,26 @@ export const users: Record<'diner' | 'franchisee' | 'admin', Required<User>> = {
   admin: { id: '1', name: 'Mama Ricci', email: 'a@jwt.com', password: 'admin', roles: [{ role: Role.Admin }] },
 };
 
+// Menu returned by GET /api/order/menu
 export const menu: Pizza[] = [
   { id: '1', title: 'Veggie', image: 'pizza1.png', price: 0.0038, description: 'A garden of delight' },
   { id: '2', title: 'Pepperoni', image: 'pizza2.png', price: 0.0042, description: 'Spicy treat' },
   { id: '3', title: 'Margarita', image: 'pizza3.png', price: 0.0014, description: 'Essential classic' },
 ];
 
+// The only JWT the factory mock accepts as valid
 export const validJwt = 'eyJpYXQ.valid.pizza';
 
 export type MockUser = keyof typeof users;
 
 export interface MockOptions {
-  /** Start the test already authenticated as this user. */
+  // Start the test already logged in as this user
   loggedInAs?: MockUser;
   franchises?: Franchise[];
   orders?: Order[];
 }
 
-/** Mutable backend state. Tests may flip the failure flags to reach error branches. */
+// Mock backend state. Tests flip the *Fails flags to reach error branches.
 export interface MockState {
   users: Required<User>[];
   franchises: Franchise[];
@@ -42,6 +45,7 @@ export interface MockState {
   createFranchiseFails: boolean;
 }
 
+// PizzaCorp (id 2) belongs to the franchisee; topSpot has no stores
 function defaultFranchises(): Franchise[] {
   return [
     {
@@ -63,15 +67,18 @@ function defaultFranchises(): Franchise[] {
   ];
 }
 
+// Token the mocks hand out for each user
 function tokenFor(user: User) {
   return `token-${user.id}`;
 }
 
+// Reply with a JSON body and status code
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, json: body });
 }
 
 export async function basicInit(page: Page, options: MockOptions = {}): Promise<MockState> {
+  // Fresh state per test so create/delete flows change what the UI shows
   const state: MockState = {
     users: Object.values(users).map((u) => ({ ...u, roles: [...u.roles] })),
     franchises: structuredClone(options.franchises ?? defaultFranchises()),
@@ -83,11 +90,13 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
   };
   const newId = () => String(state.nextId++);
 
+  // Find the user that owns the Bearer token on the request
   function authUser(route: Route) {
     const header = route.request().headers()['authorization'];
     return state.users.find((u) => header === `Bearer ${tokenFor(u)}`);
   }
 
+  // Never send passwords back to the browser
   function publicUser(user: Required<User>): User {
     const { password: _password, ...rest } = user;
     return rest;
@@ -109,6 +118,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     const method = route.request().method();
     expect(['PUT', 'POST', 'DELETE']).toContain(method);
 
+    // Login
     if (method === 'PUT') {
       const body = route.request().postDataJSON();
       expect(Object.keys(body).sort()).toEqual(['email', 'password']);
@@ -119,6 +129,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
       return json(route, { user: publicUser(user), token: tokenFor(user) });
     }
 
+    // Register
     if (method === 'POST') {
       const body = route.request().postDataJSON();
       expect(Object.keys(body).sort()).toEqual(['email', 'name', 'password']);
@@ -130,10 +141,12 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
       return json(route, { user: publicUser(user), token: tokenFor(user) });
     }
 
+    // Logout
     expect(authUser(route)).toBeDefined();
     return json(route, { message: 'logout successful' });
   });
 
+  // Current user (401 when the token is missing or bad)
   await page.route(/\/api\/user\/me$/, async (route) => {
     expect(route.request().method()).toBe('GET');
     const user = authUser(route);
@@ -141,11 +154,13 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     return json(route, publicUser(user));
   });
 
+  // Pizza menu
   await page.route(/\/api\/order\/menu$/, async (route) => {
     expect(route.request().method()).toBe('GET');
     return json(route, menu);
   });
 
+  // Order history and placing an order
   await page.route(/\/api\/order$/, async (route) => {
     const method = route.request().method();
     expect(['GET', 'POST']).toContain(method);
@@ -171,6 +186,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     return json(route, { order, jwt: validJwt });
   });
 
+  // Pizza factory JWT verify
   await page.route(/\/api\/order\/verify$/, async (route) => {
     expect(route.request().method()).toBe('POST');
     const body = route.request().postDataJSON();
@@ -193,6 +209,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
       const params = new URL(route.request().url()).searchParams;
       const pageNum = Number(params.get('page') ?? 0);
       const limit = Number(params.get('limit') ?? 10);
+      // Turn the '*' wildcard into a regex for the name filter
       const pattern = (params.get('name') ?? '*').replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
       const matcher = new RegExp(`^${pattern}$`, 'i');
       const matching = state.franchises.filter((f) => matcher.test(f.name));
@@ -200,6 +217,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
       return json(route, { franchises: matching.slice(start, start + limit), more: start + limit < matching.length });
     }
 
+    // Only admins can create franchises
     const user = authUser(route);
     expect(user?.roles.some((r) => r.role === Role.Admin)).toBe(true);
     const body = route.request().postDataJSON();
@@ -231,6 +249,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     return json(route, { message: 'franchise deleted' });
   });
 
+  // Create a store
   await page.route(/\/api\/franchise\/\d+\/store$/, async (route) => {
     expect(route.request().method()).toBe('POST');
     expect(authUser(route)).toBeDefined();
@@ -244,6 +263,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     return json(route, store);
   });
 
+  // Close a store
   await page.route(/\/api\/franchise\/\d+\/store\/\d+$/, async (route) => {
     expect(route.request().method()).toBe('DELETE');
     expect(authUser(route)).toBeDefined();
@@ -270,6 +290,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
   return state;
 }
 
+// Log in through the header link and login form
 export async function login(page: Page, who: MockUser) {
   await page.getByRole('link', { name: 'Login', exact: true }).click();
   await page.getByPlaceholder('Email address').fill(users[who].email);

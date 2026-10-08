@@ -1,3 +1,4 @@
+// Menu, payment, delivery, and JWT verify
 import { test, expect } from './testSetup';
 import { basicInit, login, validJwt } from './mocks';
 
@@ -15,7 +16,7 @@ test('purchase with login', async ({ page }) => {
   await expect(page.getByText('Selected pizzas: 2')).toBeVisible();
   await page.getByRole('button', { name: 'Checkout' }).click();
 
-  // Not logged in yet, so payment sends us to login first.
+  // Not logged in yet, so payment sends us to login first
   await expect(page).toHaveURL(/\/payment\/login$/);
   await page.getByPlaceholder('Email address').fill('d@jwt.com');
   await page.getByPlaceholder('Password').fill('diner');
@@ -42,6 +43,7 @@ test('purchase with login', async ({ page }) => {
   const modal = page.locator('#hs-jwt-modal');
   await expect(modal.getByRole('heading')).toHaveText('JWT Pizza - valid');
   await expect(modal).toContainText('"name": "Student"');
+  // Preline ignores Close until the open animation finishes
   await expect(modal).toHaveClass(/opened/);
   await modal.getByRole('button', { name: 'Close' }).click();
   await expect(modal).toBeHidden();
@@ -99,6 +101,7 @@ test('delivery without an order has an invalid jwt', async ({ page }) => {
   await basicInit(page);
   await page.goto('/delivery');
 
+  // No order in router state, so the page shows the 'error' placeholder JWT
   await expect(page.getByText('error', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Verify' }).click();
   const modal = page.locator('#hs-jwt-modal');

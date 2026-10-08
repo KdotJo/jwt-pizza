@@ -1,3 +1,4 @@
+// Static pages, navigation, and API docs
 import { test, expect } from './testSetup';
 import { basicInit } from './mocks';
 
@@ -11,6 +12,7 @@ test('home page', async ({ page }) => {
   expect(await page.title()).toBe('JWT Pizza');
   await expect(page.getByRole('heading', { name: "The web's best pizza" })).toBeVisible();
   await expect(page.getByText('Most amazing pizza experience of my life.')).toBeAttached();
+  // CI rewrites version.json, so check the format instead of the value
   await expect(page.getByText(/Version: \d{8}\.\d{6}/)).toBeVisible();
 });
 

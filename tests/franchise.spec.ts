@@ -1,3 +1,4 @@
+// Franchisee dashboard: view, create, and close stores
 import { test, expect } from './testSetup';
 import { basicInit, login } from './mocks';
 
@@ -35,7 +36,7 @@ test('franchisee cancels store creation', async ({ page }) => {
   await page.getByRole('button', { name: 'Cancel' }).click();
 
   await expect(page).toHaveURL(/\/franchise-dashboard$/);
-  await expect(page.getByRole('row')).toHaveCount(2);
+  await expect(page.getByRole('row')).toHaveCount(2); // Header + the one store
 });
 
 test('franchisee closes a store', async ({ page }) => {

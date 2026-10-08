@@ -1,7 +1,9 @@
+// Admin dashboard: list, page, filter, create, and close franchises
 import { test, expect } from './testSetup';
 import { basicInit, login } from './mocks';
 import { Franchise } from '../src/service/pizzaService';
 
+// Enough franchises to need more than one page (admin page size is 3)
 function manyFranchises(count: number): Franchise[] {
   return Array.from({ length: count }, (_, i) => ({
     id: String(i + 1),
@@ -84,7 +86,7 @@ test('admin creates a franchise', async ({ page }) => {
   await page.getByRole('button', { name: 'Create' }).click();
 
   await expect(page).toHaveURL(/\/admin-dashboard$/);
-  // The new franchise lands on the second page of three.
+  // New franchise lands on page 2 (page size is 3)
   await page.getByRole('button', { name: '»' }).click();
   await expect(page.getByRole('row', { name: /pizzaPocket/ })).toContainText('Kai Chen');
   expect(state.franchises.map((f) => f.name)).toContain('pizzaPocket');
@@ -99,6 +101,7 @@ test('admin franchise creation fails for an unknown franchisee', async ({ page }
   const response = page.waitForResponse(/\/api\/franchise$/);
   await page.getByRole('button', { name: 'Create' }).click();
 
+  // The app shows no error, it just stays on the form
   expect((await response).status()).toBe(404);
   await expect(page).toHaveURL(/\/admin-dashboard\/create-franchise$/);
   expect(state.franchises.map((f) => f.name)).not.toContain('ghostPizza');

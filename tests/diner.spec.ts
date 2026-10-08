@@ -1,3 +1,4 @@
+// Diner dashboard and order history
 import { test, expect } from './testSetup';
 import { basicInit } from './mocks';
 
@@ -36,7 +37,7 @@ test('diner with order history', async ({ page }) => {
   await page.goto('/diner-dashboard');
 
   await expect(page.getByText('Here is your history of all the good times.')).toBeVisible();
-  await expect(page.getByRole('row')).toHaveCount(3);
+  await expect(page.getByRole('row')).toHaveCount(3); // Header + 2 orders
   await expect(page.getByRole('row', { name: /^11/ })).toContainText('0.05 ₿');
   await expect(page.getByRole('row', { name: /^12/ })).toContainText('0.75 ₿');
   await expect(page.getByRole('row', { name: /^12/ })).toContainText('2024-06-06T05:14:40.000Z');

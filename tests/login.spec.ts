@@ -1,3 +1,4 @@
+// Login, register, and logout
 import { test, expect } from './testSetup';
 import { basicInit, login, users } from './mocks';
 
@@ -81,13 +82,14 @@ test('logout', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'KC' })).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
 
-  // The session stays logged out across a reload.
+  // Still logged out after a reload
   await page.reload();
   await expect(page.getByRole('link', { name: 'Login', exact: true })).toBeVisible();
 });
 
 test('stale token is discarded', async ({ page }) => {
   await basicInit(page);
+  // Seed a token the mock backend won't accept
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('stale')) {
       localStorage.setItem('token', 'expired-token');
