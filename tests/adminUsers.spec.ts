@@ -156,3 +156,25 @@ test('logged out visitor cannot see the users table', async ({ page }) => {
   await expect(page.getByText('Oops')).toBeVisible();
   await expect(page.getByRole('table', { name: 'Users' })).toHaveCount(0);
 });
+
+test('admin deletes a user', async ({ page }) => {
+  const state = await basicInit(page, { loggedInAs: 'admin' });
+  await page.goto('/admin-dashboard');
+  const table = page.getByRole('table', { name: 'Users' });
+  await expect(table.getByRole('row', { name: /Kai Chen/ })).toBeVisible();
+
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toBe('Delete Kai Chen (d@jwt.com)?');
+    await dialog.accept();
+  });
+  const deleteRequest = page.waitForRequest((r) => r.method() === 'DELETE' && /\/api\/user\/\d+$/.test(r.url()));
+  const refresh = page.waitForRequest((r) => r.method() === 'GET' && /\/api\/user\?/.test(r.url()));
+  await table.getByRole('row', { name: /Kai Chen/ }).getByRole('button', { name: 'Delete Kai Chen' }).click();
+
+  expect((await deleteRequest).url()).toMatch(/\/api\/user\/3$/);
+  await refresh;
+  await expect(table.getByRole('row', { name: /Kai Chen/ })).toHaveCount(0);
+  await expect(table.getByRole('row', { name: /Fran Chisee/ })).toBeVisible();
+  expect(state.users.map((u) => u.id)).not.toContain('3');
+});

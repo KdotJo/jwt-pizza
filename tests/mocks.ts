@@ -179,12 +179,22 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     return json(route, { users: matching.slice(start, start + limit).map(publicUser), more: start + limit < matching.length });
   });
 
-  // Update a user (self or admin). Empty fields keep their old value.
+  // PUT: update a user (self or admin), empty fields keep their old value.
+  // DELETE: remove a user (admin only).
   await page.route(/\/api\/user\/\d+$/, async (route) => {
-    expect(route.request().method()).toBe('PUT');
+    const method = route.request().method();
+    expect(['PUT', 'DELETE']).toContain(method);
     const caller = authUser(route);
     if (!caller) return json(route, { message: 'unauthorized' }, 401);
     const id = route.request().url().split('/').pop();
+
+    if (method === 'DELETE') {
+      if (!caller.roles.some((r) => r.role === Role.Admin)) return json(route, { message: 'unable to delete user' }, 403);
+      if (!state.users.some((u) => u.id === id)) return json(route, { message: 'unknown user' }, 404);
+      state.users = state.users.filter((u) => u.id !== id);
+      return json(route, { message: 'user deleted' });
+    }
+
     if (caller.id !== id && !caller.roles.some((r) => r.role === Role.Admin)) {
       return json(route, { message: 'unauthorized' }, 403);
     }
