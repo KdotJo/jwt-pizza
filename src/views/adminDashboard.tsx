@@ -18,6 +18,8 @@ export default function AdminDashboard(props: Props) {
   const filterFranchiseRef = React.useRef<HTMLInputElement>(null);
   const [userList, setUserList] = React.useState<UserList>({ users: [], more: false });
   const [userPage, setUserPage] = React.useState(1);
+  const [userFilter, setUserFilter] = React.useState('*');
+  const filterUserRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     (async () => {
@@ -28,10 +30,17 @@ export default function AdminDashboard(props: Props) {
   React.useEffect(() => {
     (async () => {
       if (Role.isRole(props.user, Role.Admin)) {
-        setUserList(await pizzaService.getUsers(userPage, 10, '*'));
+        setUserList(await pizzaService.getUsers(userPage, 10, userFilter));
       }
     })();
-  }, [props.user, userPage]);
+  }, [props.user, userPage, userFilter]);
+
+  // New search starts over at page 1; a blank filter matches everyone
+  function filterUsers() {
+    const text = filterUserRef.current?.value;
+    setUserFilter(text ? `*${text}*` : '*');
+    setUserPage(1);
+  }
 
   function createFranchise() {
     navigate('/admin-dashboard/create-franchise');
@@ -162,7 +171,13 @@ export default function AdminDashboard(props: Props) {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={4} className="text-end text-sm font-medium">
+                          <td className="px-1 py-1" colSpan={2}>
+                            <input type="text" ref={filterUserRef} name="filterUser" placeholder="Name" className="px-2 py-1 text-sm border border-gray-300 rounded-lg" />
+                            <button type="submit" className="ml-2 px-2 py-1 text-sm font-semibold rounded-lg border border-orange-400 text-orange-400 hover:border-orange-800 hover:text-orange-800" onClick={filterUsers}>
+                              Search
+                            </button>
+                          </td>
+                          <td colSpan={2} className="text-end text-sm font-medium">
                             <button className="w-12 p-1 text-sm font-semibold rounded-lg border border-transparent bg-white text-grey border-grey m-1 hover:bg-orange-200 disabled:bg-neutral-300" onClick={() => setUserPage(userPage - 1)} disabled={userPage <= 1}>
                               Prev
                             </button>
