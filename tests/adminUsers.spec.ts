@@ -178,3 +178,57 @@ test('admin deletes a user', async ({ page }) => {
   await expect(table.getByRole('row', { name: /Fran Chisee/ })).toBeVisible();
   expect(state.users.map((u) => u.id)).not.toContain('3');
 });
+
+test('admin cancels deleting a user', async ({ page }) => {
+  const state = await basicInit(page, { loggedInAs: 'admin' });
+  await page.goto('/admin-dashboard');
+  const deletes: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() === 'DELETE') deletes.push(r.url());
+  });
+
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.getByRole('button', { name: 'Delete Kai Chen' }).click();
+
+  await expect(page.getByRole('table', { name: 'Users' }).getByRole('row', { name: /Kai Chen/ })).toBeVisible();
+  expect(deletes).toEqual([]);
+  expect(state.users.map((u) => u.id)).toContain('3');
+});
+
+test('deleting the only user on the last page goes back a page', async ({ page }) => {
+  // 3 role users + 8 = 11, so page 2 holds just User 8
+  await basicInit(page, { loggedInAs: 'admin', extraUsers: manyUsers(8) });
+  await page.goto('/admin-dashboard');
+  const rows = page.getByRole('table', { name: 'Users' }).locator('tbody tr');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(rows).toHaveCount(1);
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete User 8' }).click();
+
+  await expect(rows).toHaveCount(10);
+  await expect(rows.first()).toContainText('Kai Chen');
+  await expect(page.getByRole('button', { name: 'Prev' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
+});
+
+test('failed delete shows the error and refreshes the list', async ({ page }) => {
+  const state = await basicInit(page, { loggedInAs: 'admin' });
+  await page.goto('/admin-dashboard');
+  const table = page.getByRole('table', { name: 'Users' });
+  await expect(table.getByRole('row', { name: /Kai Chen/ })).toBeVisible();
+
+  // Someone else already deleted Kai, so the server answers 404
+  state.users = state.users.filter((u) => u.id !== '3');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete Kai Chen' }).click();
+
+  await expect(page.getByText('⚠️ unknown user')).toBeVisible();
+  await expect(table.getByRole('row', { name: /Kai Chen/ })).toHaveCount(0);
+
+  // The message clears after a successful action
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete Fran Chisee' }).click();
+  await expect(table.getByRole('row', { name: /Fran Chisee/ })).toHaveCount(0);
+  await expect(page.getByText('⚠️ unknown user')).toHaveCount(0);
+});
