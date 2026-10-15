@@ -18,6 +18,7 @@ export default function DinerDashboard(props: Props) {
   const nameRef = React.useRef<HTMLInputElement>(null);
   const emailRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);
+  const [errorMessage, setErrorMessage] = React.useState('');
 
   React.useEffect(() => {
     (async () => {
@@ -41,6 +42,7 @@ export default function DinerDashboard(props: Props) {
     nameRef.current!.value = user.name ?? '';
     emailRef.current!.value = user.email ?? '';
     passwordRef.current!.value = '';
+    setErrorMessage('');
     HSOverlay.open(document.getElementById('hs-jwt-modal')!);
   }
 
@@ -52,7 +54,12 @@ export default function DinerDashboard(props: Props) {
       password: passwordRef.current?.value || undefined,
       roles: user.roles,
     };
-    props.setUser(await pizzaService.updateUser(updatedUser));
+    try {
+      props.setUser(await pizzaService.updateUser(updatedUser));
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      return;
+    }
     setTimeout(() => {
       HSOverlay.close(document.getElementById('hs-jwt-modal')!);
     }, 100);
@@ -150,6 +157,7 @@ export default function DinerDashboard(props: Props) {
                 <div className="font-semibold">password:</div>
                 <input id="password" type="password" className="col-span-4 border border-gray-300 rounded-md p-1" ref={passwordRef} />
               </div>
+              {errorMessage && <div className="text-orange-700 bg-yellow-100 p-2 rounded-md">⚠️ {errorMessage}</div>}
             </div>
             <div className="flex justify-end items-center gap-x-2 py-3 px-4 bg-slate-200 border-t rounded-b-xl">
               <button type="button" className="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700" onClick={updateUser}>
