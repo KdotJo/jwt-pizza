@@ -131,3 +131,28 @@ test('user search text is URL encoded', async ({ page }) => {
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('Pat & Lee #1');
 });
+
+for (const who of ['diner', 'franchisee'] as const) {
+  test(`${who} cannot see the users table`, async ({ page }) => {
+    await basicInit(page, { loggedInAs: who });
+    const listRequests: string[] = [];
+    page.on('request', (r) => {
+      if (/\/api\/user\?/.test(r.url())) listRequests.push(r.url());
+    });
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'Global' }).getByRole('link', { name: 'Admin' })).toHaveCount(0);
+
+    await page.goto('/admin-dashboard');
+    await expect(page.getByText('Oops')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Users' })).toHaveCount(0);
+    await expect(page.getByText('Kai Chen')).toHaveCount(0);
+    expect(listRequests).toEqual([]);
+  });
+}
+
+test('logged out visitor cannot see the users table', async ({ page }) => {
+  await basicInit(page);
+  await page.goto('/admin-dashboard');
+  await expect(page.getByText('Oops')).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Users' })).toHaveCount(0);
+});
