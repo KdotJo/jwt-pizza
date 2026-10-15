@@ -9,11 +9,15 @@ import { Order, OrderHistory, Role, User } from '../service/pizzaService';
 
 interface Props {
   user: User | null;
+  setUser: (user: User) => void;
 }
 
 export default function DinerDashboard(props: Props) {
   const user = props.user || ({} as User);
   const [orders, setOrders] = React.useState<Order[]>([]);
+  const nameRef = React.useRef<HTMLInputElement>(null);
+  const emailRef = React.useRef<HTMLInputElement>(null);
+  const passwordRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     (async () => {
@@ -33,6 +37,14 @@ export default function DinerDashboard(props: Props) {
   }
 
   async function updateUser() {
+    const updatedUser: User = {
+      id: user.id,
+      name: nameRef.current?.value,
+      email: emailRef.current?.value,
+      password: passwordRef.current?.value || undefined,
+      roles: user.roles,
+    };
+    props.setUser(updatedUser);
     setTimeout(() => {
       HSOverlay.close(document.getElementById('hs-jwt-modal')!);
     }, 100);
@@ -121,7 +133,16 @@ export default function DinerDashboard(props: Props) {
                 <CloseIcon className="" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto"></div>
+            <div className="p-4 overflow-y-auto">
+              <div className="my-4 text-lg text-start grid grid-cols-5 gap-2 items-center">
+                <div className="font-semibold">name:</div>
+                <input type="text" className="col-span-4 border border-gray-300 rounded-md p-1" defaultValue={user.name} ref={nameRef} />
+                <div className="font-semibold">email:</div>
+                <input type="email" className="col-span-4 border border-gray-300 rounded-md p-1" defaultValue={user.email} ref={emailRef} />
+                <div className="font-semibold">password:</div>
+                <input id="password" type="password" className="col-span-4 border border-gray-300 rounded-md p-1" defaultValue="" ref={passwordRef} />
+              </div>
+            </div>
             <div className="flex justify-end items-center gap-x-2 py-3 px-4 bg-slate-200 border-t rounded-b-xl">
               <button type="button" className="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-orange-600 text-white hover:bg-orange-700" onClick={updateUser}>
                 Update
