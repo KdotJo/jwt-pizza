@@ -166,3 +166,26 @@ test('closing the dialog without updating discards the edits', async ({ page }) 
   await expect(dialog.locator('#password')).toHaveValue('');
   expect(state.users.find((u) => u.id === '3')?.name).toBe('Kai Chen');
 });
+
+test('failed update shows the error and keeps the saved user', async ({ page }) => {
+  const state = await basicInit(page, { loggedInAs: 'diner' });
+  state.updateUserFails = true;
+  await page.goto('/diner-dashboard');
+
+  await page.getByRole('button', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toHaveClass(/opened/);
+  await dialog.getByRole('textbox').nth(1).fill('a@jwt.com');
+  await dialog.getByRole('button', { name: 'Update' }).click();
+
+  // Dialog stays open with the server's message
+  await expect(dialog).toContainText('email already in use');
+  await expect(dialog).toHaveClass(/opened/);
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await page.waitForSelector('[role="dialog"].hidden', { state: 'attached' });
+  await expect(page.getByRole('main')).toContainText('d@jwt.com');
+
+  // A later edit starts without the old error
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await expect(dialog).not.toContainText('email already in use');
+});

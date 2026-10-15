@@ -43,6 +43,7 @@ export interface MockState {
   orderFails: boolean;
   verifyFails: boolean;
   createFranchiseFails: boolean;
+  updateUserFails: boolean;
 }
 
 // PizzaCorp (id 2) belongs to the franchisee; topSpot has no stores
@@ -87,6 +88,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     orderFails: false,
     verifyFails: false,
     createFranchiseFails: false,
+    updateUserFails: false,
   };
   const newId = () => String(state.nextId++);
 
@@ -165,6 +167,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     }
     const user = state.users.find((u) => u.id === id);
     if (!user) return json(route, { message: 'unknown user' }, 404);
+    if (state.updateUserFails) return json(route, { message: 'email already in use' }, 409);
     const body = route.request().postDataJSON();
     if (body.name) user.name = body.name;
     if (body.email) user.email = body.email;
