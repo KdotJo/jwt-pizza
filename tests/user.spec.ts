@@ -56,6 +56,8 @@ async function editUser(page: Page, fields: { name?: string; email?: string; pas
   await page.getByRole('button', { name: 'Edit' }).click();
   await expect(page.locator('h3')).toContainText('Edit user');
   const dialog = page.getByRole('dialog');
+  // Preline finishes opening on a timer; closing before then gets undone
+  await expect(dialog).toHaveClass(/opened/);
   if (fields.name !== undefined) await dialog.getByRole('textbox').nth(0).fill(fields.name);
   if (fields.email !== undefined) await dialog.getByRole('textbox').nth(1).fill(fields.email);
   if (fields.password !== undefined) await dialog.locator('#password').fill(fields.password);
@@ -130,4 +132,37 @@ test('admin updates own name and keeps admin access', async ({ page }) => {
   await expect(page.getByRole('main')).toContainText('admin');
   await page.getByRole('link', { name: 'Admin' }).click();
   await expect(page.getByText("Mama Ricci's kitchen")).toBeVisible();
+});
+
+test('edit dialog is prefilled when the dashboard loads directly', async ({ page }) => {
+  await basicInit(page, { loggedInAs: 'diner' });
+  // User arrives from /api/user/me after the dashboard first renders
+  await page.goto('/diner-dashboard');
+  await expect(page.getByRole('main')).toContainText('Kai Chen');
+
+  await page.getByRole('button', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('textbox').nth(0)).toHaveValue('Kai Chen');
+  await expect(dialog.getByRole('textbox').nth(1)).toHaveValue('d@jwt.com');
+  await expect(dialog.locator('#password')).toHaveValue('');
+});
+
+test('closing the dialog without updating discards the edits', async ({ page }) => {
+  const state = await basicInit(page, { loggedInAs: 'diner' });
+  await page.goto('/diner-dashboard');
+
+  await page.getByRole('button', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toHaveClass(/opened/);
+  await dialog.getByRole('textbox').nth(0).fill('junk name');
+  await dialog.locator('#password').fill('junkpass');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await page.waitForSelector('[role="dialog"].hidden', { state: 'attached' });
+  await expect(page.getByRole('main')).not.toContainText('junk name');
+
+  // Reopening shows the saved values again
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await expect(dialog.getByRole('textbox').nth(0)).toHaveValue('Kai Chen');
+  await expect(dialog.locator('#password')).toHaveValue('');
+  expect(state.users.find((u) => u.id === '3')?.name).toBe('Kai Chen');
 });
