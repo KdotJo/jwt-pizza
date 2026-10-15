@@ -77,7 +77,7 @@ class HttpPizzaService implements PizzaService {
   }
 
   async getUsers(page: number = 1, limit: number = 10, nameFilter: string = '*'): Promise<UserList> {
-    return this.callEndpoint(`/api/user?page=${page}&limit=${limit}&name=${nameFilter}`);
+    return this.callEndpoint(`/api/user?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}`);
   }
 
   async getMenu(): Promise<Menu> {
