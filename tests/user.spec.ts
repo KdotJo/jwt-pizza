@@ -13,6 +13,14 @@ async function registerDiner(page: Page, email = 'pd@jwt.com') {
   await page.getByRole('button', { name: 'Register' }).click();
 }
 
+// Log in through the login form with any credentials
+async function loginAs(page: Page, email: string, password: string) {
+  await page.getByRole('link', { name: 'Login', exact: true }).click();
+  await page.getByPlaceholder('Email address').fill(email);
+  await page.getByPlaceholder('Password').fill(password);
+  await page.getByRole('button', { name: 'Login' }).click();
+}
+
 test('updateUser', async ({ page }) => {
   await basicInit(page);
   await registerDiner(page);
@@ -34,5 +42,11 @@ test('updateUser', async ({ page }) => {
   await page.getByRole('textbox').first().fill('pizza dinerx');
   await page.getByRole('button', { name: 'Update' }).click();
   await page.waitForSelector('[role="dialog"].hidden', { state: 'attached' });
+  await expect(page.getByRole('main')).toContainText('pizza dinerx');
+
+  // The change is saved, not just shown
+  await page.getByRole('link', { name: 'Logout' }).click();
+  await loginAs(page, 'pd@jwt.com', 'diner');
+  await page.getByRole('link', { name: 'pd' }).click();
   await expect(page.getByRole('main')).toContainText('pizza dinerx');
 });

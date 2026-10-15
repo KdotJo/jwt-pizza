@@ -154,6 +154,24 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     return json(route, publicUser(user));
   });
 
+  // Update a user (self or admin). Empty fields keep their old value.
+  await page.route(/\/api\/user\/\d+$/, async (route) => {
+    expect(route.request().method()).toBe('PUT');
+    const caller = authUser(route);
+    if (!caller) return json(route, { message: 'unauthorized' }, 401);
+    const id = route.request().url().split('/').pop();
+    if (caller.id !== id && !caller.roles.some((r) => r.role === Role.Admin)) {
+      return json(route, { message: 'unauthorized' }, 403);
+    }
+    const user = state.users.find((u) => u.id === id);
+    if (!user) return json(route, { message: 'unknown user' }, 404);
+    const body = route.request().postDataJSON();
+    if (body.name) user.name = body.name;
+    if (body.email) user.email = body.email;
+    if (body.password) user.password = body.password;
+    return json(route, { user: publicUser(user), token: tokenFor(user) });
+  });
+
   // Pizza menu
   await page.route(/\/api\/order\/menu$/, async (route) => {
     expect(route.request().method()).toBe('GET');
