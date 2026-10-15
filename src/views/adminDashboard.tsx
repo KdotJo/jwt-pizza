@@ -35,6 +35,12 @@ export default function AdminDashboard(props: Props) {
     })();
   }, [props.user, userPage, userFilter]);
 
+  async function deleteUser(user: User) {
+    if (!window.confirm(`Delete ${user.name} (${user.email})?`)) return;
+    await pizzaService.deleteUser(user.id!);
+    setUserList(await pizzaService.getUsers(userPage, 10, userFilter));
+  }
+
   // New search starts over at page 1; a blank filter matches everyone
   function filterUsers() {
     const text = filterUserRef.current?.value;
@@ -165,7 +171,11 @@ export default function AdminDashboard(props: Props) {
                             <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{user.name}</td>
                             <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{user.email}</td>
                             <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{user.roles?.map((r) => r.role).join(', ')}</td>
-                            <td className="px-6 py-1 whitespace-nowrap text-end text-sm font-medium"></td>
+                            <td className="px-6 py-1 whitespace-nowrap text-end text-sm font-medium">
+                              <button type="button" aria-label={`Delete ${user.name}`} className="px-2 py-1 inline-flex items-center text-sm font-semibold rounded-lg border border-1 border-orange-400 text-orange-400 hover:border-orange-800 hover:text-orange-800" onClick={() => deleteUser(user)}>
+                                ✕
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
