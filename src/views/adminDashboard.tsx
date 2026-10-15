@@ -20,6 +20,7 @@ export default function AdminDashboard(props: Props) {
   const [userPage, setUserPage] = React.useState(1);
   const [userFilter, setUserFilter] = React.useState('*');
   const filterUserRef = React.useRef<HTMLInputElement>(null);
+  const [userError, setUserError] = React.useState('');
 
   React.useEffect(() => {
     (async () => {
@@ -37,8 +38,19 @@ export default function AdminDashboard(props: Props) {
 
   async function deleteUser(user: User) {
     if (!window.confirm(`Delete ${user.name} (${user.email})?`)) return;
-    await pizzaService.deleteUser(user.id!);
-    setUserList(await pizzaService.getUsers(userPage, 10, userFilter));
+    try {
+      await pizzaService.deleteUser(user.id!);
+      setUserError('');
+    } catch (err: any) {
+      setUserError(err.message);
+    }
+    // Reload either way so the table matches the server
+    const list = await pizzaService.getUsers(userPage, 10, userFilter);
+    if (list.users.length === 0 && userPage > 1) {
+      setUserPage(userPage - 1); // Emptied the last page; the effect loads the one before
+    } else {
+      setUserList(list);
+    }
   }
 
   // New search starts over at page 1; a blank filter matches everyone
@@ -150,6 +162,7 @@ export default function AdminDashboard(props: Props) {
         </div>
         <div className="text-start py-8 px-4 sm:px-6 lg:px-8">
           <h3 className="text-neutral-100 text-xl">Users</h3>
+          {userError && <div className="text-orange-700 bg-yellow-100 p-2 my-2 rounded-md">⚠️ {userError}</div>}
           <div className="bg-neutral-100 overflow-clip my-4">
             <div className="flex flex-col">
               <div className="-m-1.5 overflow-x-auto">
