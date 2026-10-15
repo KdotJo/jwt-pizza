@@ -32,6 +32,8 @@ export interface MockOptions {
   loggedInAs?: MockUser;
   franchises?: Franchise[];
   orders?: Order[];
+  // Extra users added after the three role users
+  extraUsers?: Required<User>[];
 }
 
 // Mock backend state. Tests flip the *Fails flags to reach error branches.
@@ -73,6 +75,12 @@ function tokenFor(user: User) {
   return `token-${user.id}`;
 }
 
+// Turn a name filter with '*' wildcards into a case-insensitive regex
+function wildcardMatcher(filter: string) {
+  const pattern = filter.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  return new RegExp(`^${pattern}$`, 'i');
+}
+
 // Reply with a JSON body and status code
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, json: body });
@@ -81,7 +89,7 @@ async function json(route: Route, body: unknown, status = 200) {
 export async function basicInit(page: Page, options: MockOptions = {}): Promise<MockState> {
   // Fresh state per test so create/delete flows change what the UI shows
   const state: MockState = {
-    users: Object.values(users).map((u) => ({ ...u, roles: [...u.roles] })),
+    users: [...Object.values(users), ...(options.extraUsers ?? [])].map((u) => ({ ...u, roles: [...u.roles] })),
     franchises: structuredClone(options.franchises ?? defaultFranchises()),
     orders: structuredClone(options.orders ?? []),
     nextId: 100,
@@ -154,6 +162,21 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
     const user = authUser(route);
     if (!user) return json(route, { message: 'unauthorized' }, 401);
     return json(route, publicUser(user));
+  });
+
+  // List users (admin only), 1-based pages with a '*' wildcard name filter
+  await page.route(/\/api\/user(\?.*)?$/, async (route) => {
+    expect(route.request().method()).toBe('GET');
+    const caller = authUser(route);
+    if (!caller) return json(route, { message: 'unauthorized' }, 401);
+    if (!caller.roles.some((r) => r.role === Role.Admin)) return json(route, { message: 'unable to list users' }, 403);
+    const params = new URL(route.request().url()).searchParams;
+    const pageNum = Number(params.get('page') ?? 1);
+    const limit = Number(params.get('limit') ?? 10);
+    const matcher = wildcardMatcher(params.get('name') ?? '*');
+    const matching = state.users.filter((u) => matcher.test(u.name));
+    const start = (pageNum - 1) * limit;
+    return json(route, { users: matching.slice(start, start + limit).map(publicUser), more: start + limit < matching.length });
   });
 
   // Update a user (self or admin). Empty fields keep their old value.
@@ -230,9 +253,7 @@ export async function basicInit(page: Page, options: MockOptions = {}): Promise<
       const params = new URL(route.request().url()).searchParams;
       const pageNum = Number(params.get('page') ?? 0);
       const limit = Number(params.get('limit') ?? 10);
-      // Turn the '*' wildcard into a regex for the name filter
-      const pattern = (params.get('name') ?? '*').replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-      const matcher = new RegExp(`^${pattern}$`, 'i');
+      const matcher = wildcardMatcher(params.get('name') ?? '*');
       const matching = state.franchises.filter((f) => matcher.test(f.name));
       const start = pageNum * limit;
       return json(route, { franchises: matching.slice(start, start + limit), more: start + limit < matching.length });
