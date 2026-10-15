@@ -117,3 +117,17 @@ test('user search with no matches shows an empty table', async ({ page }) => {
   await page.getByRole('button', { name: 'Search' }).click();
   await expect(rows).toHaveCount(3);
 });
+
+test('user search text is URL encoded', async ({ page }) => {
+  const odd: Required<User> = { id: '300', name: 'Pat & Lee #1', email: 'pat@jwt.com', password: 'a', roles: [{ role: Role.Diner }] };
+  await basicInit(page, { loggedInAs: 'admin', extraUsers: [odd] });
+  await page.goto('/admin-dashboard');
+
+  await page.getByPlaceholder('Name').fill('& Lee #');
+  const request = page.waitForRequest(/\/api\/user\?/);
+  await page.getByRole('button', { name: 'Search' }).click();
+  expect(new URL((await request).url()).searchParams.get('name')).toBe('*& Lee #*');
+  const rows = page.getByRole('table', { name: 'Users' }).locator('tbody tr');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Pat & Lee #1');
+});
