@@ -69,3 +69,51 @@ test('one page of users disables both paging buttons', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Prev' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
 });
+
+test('admin filters users by name', async ({ page }) => {
+  await basicInit(page, { loggedInAs: 'admin', extraUsers: manyUsers(25) });
+  await page.goto('/admin-dashboard');
+  const rows = page.getByRole('table', { name: 'Users' }).locator('tbody tr');
+  await expect(rows).toHaveCount(10);
+
+  // Search from page 2 to check it starts over at page 1
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(rows.first()).toContainText('User 8');
+
+  await page.getByPlaceholder('Name').fill('user 1');
+  const request = page.waitForRequest(/\/api\/user\?/);
+  await page.getByRole('button', { name: 'Search' }).click();
+  const params = new URL((await request).url()).searchParams;
+  expect(params.get('name')).toBe('*user 1*');
+  expect(params.get('page')).toBe('1');
+  expect(params.get('limit')).toBe('10');
+
+  // User 1 and User 10..19 match: 11 users, so 10 here and 1 on the next page
+  await expect(rows).toHaveCount(10);
+  await expect(rows.first()).toContainText('User 1');
+  await expect(page.getByRole('table', { name: 'Users' })).not.toContainText('Kai Chen');
+
+  // Paging keeps the filter
+  const nextRequest = page.waitForRequest(/\/api\/user\?/);
+  await page.getByRole('button', { name: 'Next' }).click();
+  expect(new URL((await nextRequest).url()).searchParams.get('name')).toBe('*user 1*');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('User 19');
+});
+
+test('user search with no matches shows an empty table', async ({ page }) => {
+  await basicInit(page, { loggedInAs: 'admin' });
+  await page.goto('/admin-dashboard');
+  const rows = page.getByRole('table', { name: 'Users' }).locator('tbody tr');
+  await expect(rows).toHaveCount(3);
+
+  await page.getByPlaceholder('Name').fill('nobody');
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(rows).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
+
+  // Clearing the filter brings everyone back
+  await page.getByPlaceholder('Name').fill('');
+  await page.getByRole('button', { name: 'Search' }).click();
+  await expect(rows).toHaveCount(3);
+});
