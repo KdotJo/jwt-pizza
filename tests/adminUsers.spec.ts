@@ -135,6 +135,7 @@ test('user search text is URL encoded', async ({ page }) => {
 for (const who of ['diner', 'franchisee'] as const) {
   test(`${who} cannot see the users table`, async ({ page }) => {
     await basicInit(page, { loggedInAs: who });
+    // Record any list request so we can check none was sent
     const listRequests: string[] = [];
     page.on('request', (r) => {
       if (/\/api\/user\?/.test(r.url())) listRequests.push(r.url());
@@ -163,11 +164,13 @@ test('admin deletes a user', async ({ page }) => {
   const table = page.getByRole('table', { name: 'Users' });
   await expect(table.getByRole('row', { name: /Kai Chen/ })).toBeVisible();
 
+  // Check and accept the browser confirm
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm');
     expect(dialog.message()).toBe('Delete Kai Chen (d@jwt.com)?');
     await dialog.accept();
   });
+  // Catch the delete and the list reload that follows it
   const deleteRequest = page.waitForRequest((r) => r.method() === 'DELETE' && /\/api\/user\/\d+$/.test(r.url()));
   const refresh = page.waitForRequest((r) => r.method() === 'GET' && /\/api\/user\?/.test(r.url()));
   await table.getByRole('row', { name: /Kai Chen/ }).getByRole('button', { name: 'Delete Kai Chen' }).click();
@@ -187,6 +190,7 @@ test('admin cancels deleting a user', async ({ page }) => {
     if (r.method() === 'DELETE') deletes.push(r.url());
   });
 
+  // Say no to the confirm
   page.once('dialog', (dialog) => dialog.dismiss());
   await page.getByRole('button', { name: 'Delete Kai Chen' }).click();
 

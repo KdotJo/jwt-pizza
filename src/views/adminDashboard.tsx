@@ -16,6 +16,7 @@ export default function AdminDashboard(props: Props) {
   const [franchiseList, setFranchiseList] = React.useState<FranchiseList>({ franchises: [], more: false });
   const [franchisePage, setFranchisePage] = React.useState(0);
   const filterFranchiseRef = React.useRef<HTMLInputElement>(null);
+  // Users table: current page, active name filter, filter input, and last error
   const [userList, setUserList] = React.useState<UserList>({ users: [], more: false });
   const [userPage, setUserPage] = React.useState(1);
   const [userFilter, setUserFilter] = React.useState('*');
@@ -28,6 +29,7 @@ export default function AdminDashboard(props: Props) {
     })();
   }, [props.user, franchisePage]);
 
+  // Reload users when the page or filter changes; only admins may call the API
   React.useEffect(() => {
     (async () => {
       if (Role.isRole(props.user, Role.Admin)) {
@@ -36,12 +38,14 @@ export default function AdminDashboard(props: Props) {
     })();
   }, [props.user, userPage, userFilter]);
 
+  // Ask first, since a deleted user can't be brought back
   async function deleteUser(user: User) {
     if (!window.confirm(`Delete ${user.name} (${user.email})?`)) return;
     try {
       await pizzaService.deleteUser(user.id!);
       setUserError('');
     } catch (err: any) {
+      // e.g. 'unknown user' when someone else already deleted them
       setUserError(err.message);
     }
     // Reload either way so the table matches the server
@@ -161,6 +165,7 @@ export default function AdminDashboard(props: Props) {
           <Button className="w-36 text-xs sm:text-sm sm:w-64" title="Add Franchise" onPress={createFranchise} />
         </div>
         <div className="text-start py-8 px-4 sm:px-6 lg:px-8">
+          {/* Users: 10 per page with a name search and Prev/Next */}
           <h3 className="text-neutral-100 text-xl">Users</h3>
           {userError && <div className="text-orange-700 bg-yellow-100 p-2 my-2 rounded-md">⚠️ {userError}</div>}
           <div className="bg-neutral-100 overflow-clip my-4">
@@ -185,6 +190,7 @@ export default function AdminDashboard(props: Props) {
                             <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{user.email}</td>
                             <td className="text-start px-2 whitespace-nowrap text-sm text-gray-800">{user.roles?.map((r) => r.role).join(', ')}</td>
                             <td className="px-6 py-1 whitespace-nowrap text-end text-sm font-medium">
+                              {/* aria-label names the user, since every row's button is just ✕ */}
                               <button type="button" aria-label={`Delete ${user.name}`} className="px-2 py-1 inline-flex items-center text-sm font-semibold rounded-lg border border-1 border-orange-400 text-orange-400 hover:border-orange-800 hover:text-orange-800" onClick={() => deleteUser(user)}>
                                 ✕
                               </button>

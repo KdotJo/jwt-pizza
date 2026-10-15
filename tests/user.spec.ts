@@ -25,6 +25,7 @@ test('updateUser', async ({ page }) => {
   await basicInit(page);
   await registerDiner(page);
 
+  // 'pd' is the header link with the user's initials
   await page.getByRole('link', { name: 'pd' }).click();
 
   await expect(page.getByRole('main')).toContainText('pizza diner');
@@ -103,6 +104,7 @@ test('blank password keeps the old one', async ({ page }) => {
   await registerDiner(page);
   await page.getByRole('link', { name: 'pd' }).click();
 
+  // Look at what the browser actually sent
   const put = page.waitForRequest((r) => r.method() === 'PUT' && /\/api\/user\/\d+$/.test(r.url()));
   await editUser(page, { name: 'pizza dinerx' });
   expect((await put).postDataJSON().password).toBeUndefined();

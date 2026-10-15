@@ -15,6 +15,7 @@ interface Props {
 export default function DinerDashboard(props: Props) {
   const user = props.user || ({} as User);
   const [orders, setOrders] = React.useState<Order[]>([]);
+  // Edit dialog inputs and the error from a failed update
   const nameRef = React.useRef<HTMLInputElement>(null);
   const emailRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);
@@ -47,6 +48,7 @@ export default function DinerDashboard(props: Props) {
   }
 
   async function updateUser() {
+    // A blank password is left out so the server keeps the old one
     const updatedUser: User = {
       id: user.id,
       name: nameRef.current?.value,
@@ -55,11 +57,14 @@ export default function DinerDashboard(props: Props) {
       roles: user.roles,
     };
     try {
+      // Use the server's copy of the user, which never has the password
       props.setUser(await pizzaService.updateUser(updatedUser));
     } catch (err: any) {
+      // Keep the dialog open so the user can fix the problem
       setErrorMessage(err.message);
       return;
     }
+    // Short wait so preline has finished opening before it closes
     setTimeout(() => {
       HSOverlay.close(document.getElementById('hs-jwt-modal')!);
     }, 100);
@@ -71,6 +76,7 @@ export default function DinerDashboard(props: Props) {
         <div className="hs-tooltip inline-block">
           <img className="hs-tooltip-toggle relative inline-block size-[96px] rounded-full ring-2 ring-white hover:z-10" src="https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2&w=300&h=300&q=80" alt="Employee stock photo" />
         </div>
+        {/* Opens the edit user dialog below */}
         <Button title="Edit" className="w-16 p-0" onPress={openEditor} />
 
         <div className="my-4 text-lg text-orange-200 text-start grid grid-cols-5 gap-2">
@@ -137,6 +143,7 @@ export default function DinerDashboard(props: Props) {
         )}
       </div>
 
+      {/* Edit user dialog, opened and closed by preline's HSOverlay */}
       <div role="dialog" aria-modal="true" aria-labelledby="hs-jwt-modal-label" id="hs-jwt-modal" className="hs-overlay hidden size-full fixed top-10 start-0 z-[80] overflow-x-hidden overflow-y-auto pointer-events-none">
         <div className="hs-overlay-open:mt-7 hs-overlay-open:opacity-100 hs-overlay-open:duration-500 mt-0 opacity-0 ease-out transition-all sm:max-w-lg sm:w-full m-3 sm:mx-auto min-h-[calc(100%-3.5rem)] flex items-center">
           <div className="w-full flex flex-col bg-white border shadow-sm rounded-xl pointer-events-auto">
@@ -144,6 +151,7 @@ export default function DinerDashboard(props: Props) {
               <h3 id="hs-jwt-modal-label" className="font-bold text-gray-800">
                 Edit user
               </h3>
+              {/* Preline only manages overlays that have a data-hs-overlay trigger like this one */}
               <button type="button" aria-label="Close" className="flex justify-center items-center size-7 text-sm font-semibold rounded-full border border-transparent text-gray-800 hover:bg-gray-100" data-hs-overlay="#hs-jwt-modal">
                 <CloseIcon className="" />
               </button>

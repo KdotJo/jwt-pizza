@@ -72,14 +72,18 @@ class HttpPizzaService implements PizzaService {
 
   async updateUser(updatedUser: User): Promise<User> {
     const { user, token } = await this.callEndpoint(`/api/user/${updatedUser.id}`, 'PUT', updatedUser);
+    // The server signs a new token with the updated user, so keep it
     localStorage.setItem('token', token);
     return Promise.resolve(user);
   }
 
+  // Admin only. Pages start at 1 and '*' in nameFilter is a wildcard
   async getUsers(page: number = 1, limit: number = 10, nameFilter: string = '*'): Promise<UserList> {
+    // Encode the filter so characters like & and # stay part of the name
     return this.callEndpoint(`/api/user?page=${page}&limit=${limit}&name=${encodeURIComponent(nameFilter)}`);
   }
 
+  // Admin only
   async deleteUser(userId: string): Promise<void> {
     return this.callEndpoint(`/api/user/${userId}`, 'DELETE');
   }
