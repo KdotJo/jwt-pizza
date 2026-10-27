@@ -7,7 +7,7 @@ export const test = base.extend({
     const violations: string[] = [];
     await page.route('**/*', async (route) => {
       const request = route.request();
-      if (request.url().startsWith('http://localhost:3000')) {
+      if (request.url().startsWith('https://pizza-service.kalokjo.click')) {
         // Unmocked call to the backend
         violations.push(`${request.method()} ${request.url()}`);
         await route.abort();

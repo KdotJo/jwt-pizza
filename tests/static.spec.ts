@@ -93,7 +93,7 @@ test('service docs', async ({ page }) => {
   await expect(page.getByText('JWT Pizza API')).toBeVisible();
   await expect(page.getByRole('heading', { name: '[PUT] /api/auth' })).toBeVisible();
   await expect(page.getByText('Login existing user')).toBeVisible();
-  await expect(page.getByText('service: http://localhost:3000')).toBeVisible();
+  await expect(page.getByText('service: https://pizza-service.kalokjo.click')).toBeVisible();
 });
 
 test('factory docs', async ({ page }) => {
